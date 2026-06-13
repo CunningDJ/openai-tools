@@ -17,9 +17,9 @@ const maxInputChars = 7_500;
 const defaultVoice = "alloy";
 const defaultModel = "gpt-4o-mini-tts";
 const defaultStyle =
-  "Speak like a calm, engaging professor explaining a useful idea to a smart audience. Keep the tone warm, clear, and conversational, with steady pacing and light emphasis on key takeaways. Do not sound theatrical or overly polished.";
+  "Voice: Calm, intelligent, and warmly engaging, like a thoughtful professor explaining a useful idea. Delivery: Conversational and measured, with natural variation and light emphasis on important takeaways. Pacing: Steady and relaxed, pausing briefly between sections and after dense ideas. Phrasing: Make lists and headings sound natural when spoken. Tone: Clear, curious, grounded, and quietly confident. Avoid theatrical narration or salesy enthusiasm.";
 const markdownInstructions =
-  "The input is Markdown. Do not read Markdown syntax aloud. Treat headings as brief section transitions, bullets as list items, and quoted prompts as examples.";
+  "The input is Markdown. Do not read Markdown syntax aloud. Treat headings as brief section transitions, bullets as list items, and blockquotes as quoted passages.";
 const require = createRequire(import.meta.url);
 const ffmpegPath = require("ffmpeg-static") as string | null;
 
