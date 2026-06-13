@@ -66,7 +66,7 @@ Examples:
   )
   .parse();
 
-const [fileArg] = program.args;
+const [inputFileArg] = program.args;
 const options = program.opts<CliOptions>();
 
 const client = new OpenAI({
@@ -104,22 +104,22 @@ function getTimestamp(date = new Date()): string {
   ].join("");
 }
 
-function getOutputPathForPart(
+function getAudioChunkPath(
   outputPath: string,
-  part: number,
-  total: number,
+  chunkNumber: number,
+  totalChunks: number,
 ): string {
-  if (total === 1) return outputPath;
+  if (totalChunks === 1) return outputPath;
 
   const parsed = path.parse(outputPath);
-  const suffix = String(part).padStart(2, "0");
-  return path.join(tempOutputDir, `${parsed.name}.${suffix}${parsed.ext}`);
+  const chunkSuffix = String(chunkNumber).padStart(2, "0");
+  return path.join(tempOutputDir, `${parsed.name}.${chunkSuffix}${parsed.ext}`);
 }
 
 // Validation helpers
-function isSupportedInput(ext: string): boolean {
+function isSupportedInput(extension: string): boolean {
   return supportedInputExtensions.includes(
-    ext as (typeof supportedInputExtensions)[number],
+    extension as (typeof supportedInputExtensions)[number],
   );
 }
 
@@ -127,8 +127,8 @@ function isAudioFormat(format: string): format is AudioFormat {
   return audioFormats.includes(format as AudioFormat);
 }
 
-function isMarkdown(ext: string): boolean {
-  return ext === ".md" || ext === ".markdown";
+function isMarkdown(extension: string): boolean {
+  return extension === ".md" || extension === ".markdown";
 }
 
 async function assertReadableFile(filePath: string): Promise<void> {
@@ -142,55 +142,62 @@ async function assertReadableFile(filePath: string): Promise<void> {
 }
 
 // Text preparation
-function getTtsInstructions(ext: string): string {
-  return isMarkdown(ext)
+function getTtsInstructions(inputExtension: string): string {
+  return isMarkdown(inputExtension)
     ? `${options.style} ${markdownInstructions}`
     : options.style;
 }
 
 function splitTextForTts(input: string): string[] {
-  const blocks = input
+  const textBlocks = input
     .split(/\n{2,}/)
-    .map((block) => block.trim())
+    .map((textBlock) => textBlock.trim())
     .filter(Boolean);
 
-  return chunkPieces(blocks.flatMap(splitOversizedBlock), "\n\n");
+  return chunkTextSegments(textBlocks.flatMap(splitOversizedTextBlock), "\n\n");
 }
 
-function splitOversizedBlock(block: string): string[] {
-  if (block.length <= maxInputChars) return [block];
+function splitOversizedTextBlock(textBlock: string): string[] {
+  if (textBlock.length <= maxInputChars) return [textBlock];
 
-  const sentences = block.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [block];
-  const pieces = sentences.map((sentence) => sentence.trim()).filter(Boolean);
+  const sentences =
+    textBlock.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [textBlock];
+  const sentenceSegments = sentences
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
 
-  return chunkPieces(pieces, " ");
+  return chunkTextSegments(sentenceSegments, " ");
 }
 
-function chunkPieces(pieces: string[], separator: string): string[] {
+function chunkTextSegments(textSegments: string[], separator: string): string[] {
   const chunks: string[] = [];
-  let current = "";
+  let currentChunk = "";
 
-  for (const piece of pieces.flatMap(splitOversizedPiece)) {
-    const next = current ? `${current}${separator}${piece}` : piece;
+  for (const textSegment of textSegments.flatMap(splitOversizedTextSegment)) {
+    const nextChunk = currentChunk
+      ? `${currentChunk}${separator}${textSegment}`
+      : textSegment;
 
-    if (next.length <= maxInputChars) {
-      current = next;
+    if (nextChunk.length <= maxInputChars) {
+      currentChunk = nextChunk;
       continue;
     }
 
-    if (current) chunks.push(current);
-    current = piece;
+    if (currentChunk) chunks.push(currentChunk);
+    currentChunk = textSegment;
   }
 
-  if (current) chunks.push(current);
+  if (currentChunk) chunks.push(currentChunk);
   return chunks;
 }
 
-function splitOversizedPiece(piece: string): string[] {
-  if (piece.length <= maxInputChars) return [piece];
+function splitOversizedTextSegment(textSegment: string): string[] {
+  if (textSegment.length <= maxInputChars) return [textSegment];
 
-  const words = piece.split(/\s+/);
-  return words.length === 1 ? splitByLength(piece) : chunkPieces(words, " ");
+  const words = textSegment.split(/\s+/);
+  return words.length === 1
+    ? splitByLength(textSegment)
+    : chunkTextSegments(words, " ");
 }
 
 function splitByLength(text: string): string[] {
@@ -222,50 +229,82 @@ function formatCliError(error: unknown): string {
 
 // Audio generation
 async function createSpeechFile(
-  input: string,
+  text: string,
   outputPath: string,
   instructions: string,
 ): Promise<void> {
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  const spinner = ora(`Fetching audio for ${outputPath} ...`).start();
+
+  const response = await client.audio.speech.create({
+    model: options.model,
+    voice: options.voice,
+    input: text,
+    instructions,
+    response_format: options.format,
+  });
+
+  const audio = Buffer.from(await response.arrayBuffer());
+  await fs.writeFile(outputPath, audio);
+}
+
+async function createSpeechFiles(
+  textChunks: string[],
+  outputPath: string,
+  instructions: string,
+): Promise<string[]> {
+  const audioChunkPaths = textChunks.map((_, index) =>
+    getAudioChunkPath(outputPath, index + 1, textChunks.length),
+  );
+  const spinner =
+    textChunks.length === 1
+      ? ora(`Generating audio for ${outputPath} ...`).start()
+      : ora(
+          `Generating ${textChunks.length} audio chunks concurrently ...`,
+        ).start();
 
   try {
-    const response = await client.audio.speech.create({
-      model: options.model,
-      voice: options.voice,
-      input,
-      instructions,
-      response_format: options.format,
-    });
-
-    const audio = Buffer.from(await response.arrayBuffer());
-    await fs.writeFile(outputPath, audio);
-
-    spinner.succeed(`Wrote ${outputPath}`);
+    await Promise.all(
+      textChunks.map((textChunk, index) =>
+        createSpeechFile(textChunk, audioChunkPaths[index], instructions),
+      ),
+    );
+    spinner.succeed(
+      textChunks.length === 1
+        ? `Wrote ${outputPath}`
+        : `Generated ${textChunks.length} audio chunks`,
+    );
+    return audioChunkPaths;
   } catch (error) {
-    spinner.fail(`Failed ${outputPath}`);
+    spinner.fail(
+      textChunks.length === 1
+        ? `Failed ${outputPath}`
+        : "Failed to generate one or more audio chunks",
+    );
     throw error;
   }
 }
 
 // Audio combining
 async function combineAudioFiles(
-  inputPaths: string[],
+  audioChunkPaths: string[],
   outputPath: string,
 ): Promise<void> {
   if (!ffmpegPath) {
     throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
   }
 
-  const tempDir = await fs.mkdtemp(path.join(tmpdir(), "tts-openai-"));
-  const listPath = path.join(tempDir, "inputs.txt");
-  const list = inputPaths
-    .map((inputPath) => `file '${escapeConcatPath(path.resolve(inputPath))}'`)
+  const concatListDir = await fs.mkdtemp(path.join(tmpdir(), "tts-openai-"));
+  const concatListPath = path.join(concatListDir, "inputs.txt");
+  const concatFileList = audioChunkPaths
+    .map(
+      (audioChunkPath) =>
+        `file '${escapeConcatPath(path.resolve(audioChunkPath))}'`,
+    )
     .join("\n");
   const spinner = ora(`Combining audio into ${outputPath} ...`).start();
 
   try {
-    await fs.writeFile(listPath, `${list}\n`);
+    await fs.writeFile(concatListPath, `${concatFileList}\n`);
     await fs.mkdir(path.dirname(outputPath), { recursive: true });
     await runFfmpeg([
       "-y",
@@ -276,7 +315,7 @@ async function combineAudioFiles(
       "-safe",
       "0",
       "-i",
-      listPath,
+      concatListPath,
       "-c",
       "copy",
       outputPath,
@@ -286,7 +325,7 @@ async function combineAudioFiles(
     spinner.fail(`Failed to combine ${outputPath}`);
     throw error;
   } finally {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(concatListDir, { recursive: true, force: true });
   }
 }
 
@@ -321,9 +360,9 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-async function removeFiles(filePaths: string[]): Promise<void> {
+async function removeFiles(pathsToRemove: string[]): Promise<void> {
   await Promise.all(
-    filePaths.map((filePath) => fs.unlink(filePath).catch(() => undefined)),
+    pathsToRemove.map((filePath) => fs.unlink(filePath).catch(() => undefined)),
   );
 }
 
@@ -337,10 +376,10 @@ async function main() {
   await fs.mkdir(outputDir, { recursive: true });
   await fs.mkdir(tempOutputDir, { recursive: true });
 
-  const inputPath = resolveInputPath(fileArg);
-  const ext = path.extname(inputPath).toLowerCase();
+  const inputPath = resolveInputPath(inputFileArg);
+  const inputExtension = path.extname(inputPath).toLowerCase();
 
-  if (!isSupportedInput(ext)) {
+  if (!isSupportedInput(inputExtension)) {
     throw new Error("Expected a .txt, .md, or .markdown file");
   }
 
@@ -351,31 +390,29 @@ async function main() {
   await assertReadableFile(inputPath);
 
   const rawText = await fs.readFile(inputPath, "utf8");
-  const chunks = splitTextForTts(rawText);
-  const instructions = getTtsInstructions(ext);
+  const textChunks = splitTextForTts(rawText);
+  const instructions = getTtsInstructions(inputExtension);
   const requestedOutputPath =
     options.out ?? getDefaultOutputPath(inputPath, options.format);
   const outputPath = getTimestampedOutputPath(requestedOutputPath);
 
-  if (chunks.length === 0) {
+  if (textChunks.length === 0) {
     throw new Error("Input file is empty");
   }
 
-  if (chunks.length > 1) {
-    console.log(`Input split into ${chunks.length} parts.`);
+  if (textChunks.length > 1) {
+    console.log(`Split input into ${textChunks.length} chunks.`);
   }
 
-  const partPaths: string[] = [];
+  const audioChunkPaths = await createSpeechFiles(
+    textChunks,
+    outputPath,
+    instructions,
+  );
 
-  for (const [index, chunk] of chunks.entries()) {
-    const partPath = getOutputPathForPart(outputPath, index + 1, chunks.length);
-    await createSpeechFile(chunk, partPath, instructions);
-    partPaths.push(partPath);
-  }
-
-  if (partPaths.length > 1) {
-    await combineAudioFiles(partPaths, outputPath);
-    await removeFiles(partPaths);
+  if (audioChunkPaths.length > 1) {
+    await combineAudioFiles(audioChunkPaths, outputPath);
+    await removeFiles(audioChunkPaths);
   }
 }
 
