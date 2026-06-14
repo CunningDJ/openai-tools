@@ -4,7 +4,7 @@ A personal workspace for small OpenAI-powered command line tools.
 
 ## Tools
 
-- [`tts`](tts/): turns `.txt` and Markdown files into audio with OpenAI text-to-speech.
+- [`tts`](tts/): turns `.txt` and `.md` files into audio with OpenAI text-to-speech.
 
 ## Setup
 

@@ -1,6 +1,6 @@
 # tts
 
-A tiny CLI for turning `.txt` and Markdown files into audio with OpenAI text-to-speech.
+A tiny CLI for turning `.txt` and `.md` files into audio with OpenAI text-to-speech.
 
 ## Setup
 
