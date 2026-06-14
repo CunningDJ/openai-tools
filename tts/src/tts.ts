@@ -1,16 +1,22 @@
-import "dotenv/config";
+import "../../env.js";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import OpenAI, { APIError } from "openai";
 import ora from "ora";
 
-const inputDir = "text";
-const outputDir = "audio";
+const toolRootDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const inputDir = path.join(toolRootDir, "text");
+const outputDir = path.join(toolRootDir, "audio");
 const tempOutputDir = path.join(outputDir, "tmp");
+const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
 const audioFormats = ["mp3", "wav", "flac", "aac", "opus"] as const;
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
 const maxInputChars = 7_500;
@@ -75,9 +81,17 @@ const client = new OpenAI({
 
 // Path helpers
 function resolveInputPath(file: string): string {
-  return path.isAbsolute(file) || file.includes(path.sep)
-    ? file
+  return file.includes(path.sep)
+    ? resolveUserPath(file)
     : path.join(inputDir, file);
+}
+
+function resolveOutputPath(file: string): string {
+  return resolveUserPath(file);
+}
+
+function resolveUserPath(file: string): string {
+  return path.isAbsolute(file) ? file : path.resolve(invocationDir, file);
 }
 
 function getDefaultOutputPath(inputPath: string, format: AudioFormat): string {
@@ -369,7 +383,7 @@ async function removeFiles(pathsToRemove: string[]): Promise<void> {
 // Main workflow
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("Missing OPENAI_API_KEY in .env");
+    throw new Error("Missing OPENAI_API_KEY in the repo root .env");
   }
 
   await fs.mkdir(inputDir, { recursive: true });
@@ -393,7 +407,9 @@ async function main() {
   const textChunks = splitTextForTts(rawText);
   const instructions = getTtsInstructions(inputExtension);
   const requestedOutputPath =
-    options.out ?? getDefaultOutputPath(inputPath, options.format);
+    options.out !== undefined
+      ? resolveOutputPath(options.out)
+      : getDefaultOutputPath(inputPath, options.format);
   const outputPath = getTimestampedOutputPath(requestedOutputPath);
 
   if (textChunks.length === 0) {

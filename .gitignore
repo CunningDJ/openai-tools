@@ -4,7 +4,8 @@ node_modules
 *.swp
 *.swo
 
-audio/*
-audio/tmp/*
-text/*
+# TTS
+tts/audio/*
+tts/audio/tmp/*
+tts/text/*
 

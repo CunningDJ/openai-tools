@@ -1,0 +1,29 @@
+{
+  "name": "tts-openai",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "test": "npm run typecheck",
+    "typecheck": "tsc --noEmit",
+    "tts": "tsx src/tts.ts"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "keywords": [],
+  "author": "David Cunningham (https://github.com/cunningdj)",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "commander": "^15.0.0",
+    "ffmpeg-static": "^5.3.0",
+    "openai": "^6.42.0",
+    "ora": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
