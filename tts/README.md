@@ -47,6 +47,7 @@ Long files are split into temporary chunks in `audio/tmp/`, then combined into o
 ```bash
 npm run tts -- my-file.md --voice alloy
 npm run tts -- my-file.md --format wav
+npm run tts -- my-file.md --output audio/narration.mp3
 npm run tts -- my-file.md --style "Calm, warm professor explaining clearly"
 ```
 

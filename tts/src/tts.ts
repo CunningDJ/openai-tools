@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import OpenAI, { APIError } from "openai";
 import ora from "ora";
 
@@ -32,7 +32,9 @@ const ffmpegPath = require("ffmpeg-static") as string | null;
 
 type AudioFormat = (typeof audioFormats)[number];
 type CliOptions = {
+  o?: string;
   out?: string;
+  output?: string;
   voice: string;
   model: string;
   format: AudioFormat;
@@ -49,9 +51,11 @@ program
   .showHelpAfterError("Usage: tts <file> [options]")
   .argument("<file>", "Input file path, or filename inside text/")
   .option(
-    "-o, --out <path>",
-    "Output path. A timestamp is inserted before the extension.",
+    "-o, --output <path>",
+    "Final output path. A timestamp is inserted before the extension.",
   )
+  .addOption(new Option("--o <path>", "Alias for --output").hideHelp())
+  .addOption(new Option("--out <path>", "Alias for --output").hideHelp())
   .option("-v, --voice <voice>", "Voice to use", defaultVoice)
   .option("-m, --model <model>", "TTS model to use", defaultModel)
   .option(
@@ -68,6 +72,7 @@ Examples:
   $ npm run tts -- text/abc.txt
   $ npm run tts -- abc.md --voice alloy
   $ npm run tts -- abc.md --format wav
+  $ npm run tts -- abc.md --output audio/narration.mp3
   $ npm run tts -- abc.md --style "Warm, thoughtful podcast narrator"
 `,
   )
@@ -89,6 +94,10 @@ function resolveInputPath(file: string): string {
 
 function resolveOutputPath(file: string): string {
   return resolveUserPath(file);
+}
+
+function getRequestedOutputPath(): string | undefined {
+  return options.output ?? options.o ?? options.out;
 }
 
 function resolveUserPath(file: string): string {
@@ -415,9 +424,10 @@ async function main() {
   const rawText = await fs.readFile(inputPath, "utf8");
   const textChunks = splitTextForTts(rawText);
   const instructions = getTtsInstructions(inputExtension);
+  const requestedOutputOption = getRequestedOutputPath();
   const requestedOutputPath =
-    options.out !== undefined
-      ? resolveOutputPath(options.out)
+    requestedOutputOption !== undefined
+      ? resolveOutputPath(requestedOutputOption)
       : getDefaultOutputPath(inputPath, options.format);
   const outputPath = getTimestampedOutputPath(requestedOutputPath);
 
