@@ -13,6 +13,7 @@ const toolRootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+const repoRootDir = path.resolve(toolRootDir, "..");
 const inputDir = path.join(toolRootDir, "text");
 const outputDir = path.join(toolRootDir, "audio");
 const tempOutputDir = path.join(outputDir, "tmp");
@@ -91,7 +92,15 @@ function resolveOutputPath(file: string): string {
 }
 
 function resolveUserPath(file: string): string {
+  if (!path.isAbsolute(file) && isRepoRelativeToolPath(file)) {
+    return path.join(repoRootDir, file);
+  }
+
   return path.isAbsolute(file) ? file : path.resolve(invocationDir, file);
+}
+
+function isRepoRelativeToolPath(file: string): boolean {
+  return file === "tts" || file.startsWith(`tts${path.sep}`);
 }
 
 function getDefaultOutputPath(inputPath: string, format: AudioFormat): string {
