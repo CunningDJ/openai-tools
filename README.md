@@ -30,20 +30,33 @@ Then add your OpenAI API key:
 OPENAI_API_KEY=your_api_key_here
 ```
 
-For Google Drive uploads, use OAuth credentials. A plain Google API key cannot upload files to Drive.
+## Google Drive Uploads
 
-1. Enable the Google Drive API: https://console.cloud.google.com/apis/library/drive.googleapis.com
-2. Configure the OAuth consent screen and add yourself as a test user: https://console.cloud.google.com/apis/credentials/consent
-3. Create an OAuth client ID: https://console.cloud.google.com/apis/credentials
-4. Choose **Desktop app** as the application type.
-5. Download the client JSON, rename it to `google-oauth-client.json`, and put it in the repo root. This file is gitignored.
+Google Drive uploads use OAuth. A plain Google API key cannot upload files to Drive.
 
-The first Google Drive upload opens a browser consent flow and saves `google-oauth-token.json` in the repo root. That token file is also gitignored. Future uploads reuse it.
-
-For a headless machine, create `google-oauth-token.json` once on a machine with a browser, then copy both `google-oauth-client.json` and `google-oauth-token.json` to the headless machine. If a browser should not be opened automatically, set:
+1. Enable the [Google Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com).
+2. Configure the [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent), keep the app in Testing, and add yourself as a test user.
+3. Create an [OAuth client ID](https://console.cloud.google.com/apis/credentials) with application type **Desktop app**.
+4. Download the client JSON, rename it to `google-oauth-client.json`, and put it in the repo root.
+5. From the repo root, run the OAuth setup command and approve the browser consent flow:
 
 ```bash
-GOOGLE_DRIVE_OAUTH_NO_BROWSER=1
+npm run setup-gdrive
+```
+
+That creates `google-oauth-token.json` in the repo root. Both Google OAuth JSON files are gitignored.
+
+For a headless machine, run `npm run setup-gdrive` once on a machine with a browser, then copy both files to the headless repo root:
+
+```text
+google-oauth-client.json
+google-oauth-token.json
+```
+
+To print the consent URL without opening a browser automatically, use this. The browser still needs to reach the printed localhost callback URL.
+
+```bash
+GOOGLE_DRIVE_OAUTH_NO_BROWSER=1 npm run setup-gdrive
 ```
 
 ## Use

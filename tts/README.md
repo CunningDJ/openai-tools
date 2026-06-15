@@ -27,7 +27,7 @@ Open the folder in Google Drive and copy the URL segment after `/folders/`:
 TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID=your_drive_folder_id
 ```
 
-The first Google Drive upload opens a browser consent flow if the top-level OAuth token has not been created yet. See the top-level [Env Setup](../README.md#env-setup).
+Before the first Google Drive upload, run the top-level OAuth setup. See [Google Drive Uploads](../README.md#google-drive-uploads).
 
 ## Use
 

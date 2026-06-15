@@ -1,11 +1,11 @@
-import { loadEnvFromDir } from "../../env.js";
-import { uploadFileToGoogleDrive } from "../../utils/gdrive.js";
+import { loadEnvFromDir } from "../../env";
+import { uploadFileToGoogleDrive } from "../../utils/gdrive";
 import {
   audioDir,
   audioExtensions,
   audioFormats,
   toolRootDir,
-} from "./constants.js";
+} from "./constants";
 import path from "node:path";
 
 loadEnvFromDir(toolRootDir);

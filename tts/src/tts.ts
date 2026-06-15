@@ -1,5 +1,5 @@
-import { loadEnvFromDir } from "../../env.js";
-import { uploadFileToGoogleDrive } from "../../utils/gdrive.js";
+import { loadEnvFromDir } from "../../env";
+import { uploadFileToGoogleDrive } from "../../utils/gdrive";
 import {
   audioFormats,
   inputDir,
@@ -8,7 +8,7 @@ import {
   tempOutputDir,
   toolRootDir,
   type AudioFormat,
-} from "./constants.js";
+} from "./constants";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
