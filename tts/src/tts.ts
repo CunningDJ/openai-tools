@@ -1,24 +1,26 @@
-import "../../env.js";
+import { loadEnvFromDir } from "../../env";
+import { uploadFileToGoogleDrive } from "../../utils/gdrive";
+import {
+  audioFormats,
+  inputDir,
+  outputDir,
+  repoRootDir,
+  tempOutputDir,
+  toolRootDir,
+  type AudioFormat,
+} from "./constants";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { Command, Option } from "commander";
 import OpenAI, { APIError } from "openai";
 import ora from "ora";
 
-const toolRootDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
-const repoRootDir = path.resolve(toolRootDir, "..");
-const inputDir = path.join(toolRootDir, "text");
-const outputDir = path.join(toolRootDir, "audio");
-const tempOutputDir = path.join(outputDir, "tmp");
 const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
-const audioFormats = ["mp3", "wav", "flac", "aac", "opus"] as const;
+loadEnvFromDir(toolRootDir);
+
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
 const maxInputChars = 7_500;
 const defaultVoice = "alloy";
@@ -30,11 +32,11 @@ const markdownInstructions =
 const require = createRequire(import.meta.url);
 const ffmpegPath = require("ffmpeg-static") as string | null;
 
-type AudioFormat = (typeof audioFormats)[number];
 type CliOptions = {
   o?: string;
   out?: string;
   output?: string;
+  uploadGdrive?: boolean;
   voice: string;
   model: string;
   format: AudioFormat;
@@ -56,6 +58,7 @@ program
   )
   .addOption(new Option("--o <path>", "Alias for --output").hideHelp())
   .addOption(new Option("--out <path>", "Alias for --output").hideHelp())
+  .option("--upload-gdrive", "Upload the final audio file to Google Drive")
   .option("-v, --voice <voice>", "Voice to use", defaultVoice)
   .option("-m, --model <model>", "TTS model to use", defaultModel)
   .option(
@@ -73,6 +76,7 @@ Examples:
   $ npm run tts -- abc.md --voice alloy
   $ npm run tts -- abc.md --format wav
   $ npm run tts -- abc.md --output audio/narration.mp3
+  $ npm run tts -- abc.md --upload-gdrive
   $ npm run tts -- abc.md --style "Warm, thoughtful podcast narrator"
 `,
   )
@@ -398,10 +402,40 @@ async function removeFiles(pathsToRemove: string[]): Promise<void> {
   );
 }
 
+// Google Drive upload
+async function uploadFinalAudioFile(outputPath: string): Promise<void> {
+  const folderId = process.env.TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID?.trim();
+  const spinner = ora(`Uploading ${outputPath} to Google Drive ...`).start();
+  const uploadResult = await uploadFileToGoogleDrive(outputPath, {
+    folderId,
+  });
+
+  if (uploadResult.success) {
+    spinner.succeed(
+      `Uploaded to Google Drive: ${uploadResult.file.name ?? outputPath}`,
+    );
+    console.log(JSON.stringify({ googleDriveUpload: uploadResult }, null, 2));
+    return;
+  }
+
+  spinner.fail("Failed to upload to Google Drive");
+  console.log(JSON.stringify({ googleDriveUpload: uploadResult }, null, 2));
+  throw new Error(uploadResult.error.message);
+}
+
 // Main workflow
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Missing OPENAI_API_KEY in the repo root .env");
+  }
+
+  if (
+    options.uploadGdrive &&
+    !process.env.TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID?.trim()
+  ) {
+    throw new Error(
+      "Missing TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID in tts/.env. Set it to the Google Drive folder ID for final audio uploads.",
+    );
   }
 
   await fs.mkdir(inputDir, { recursive: true });
@@ -448,6 +482,10 @@ async function main() {
   if (audioChunkPaths.length > 1) {
     await combineAudioFiles(audioChunkPaths, outputPath);
     await removeFiles(audioChunkPaths);
+  }
+
+  if (options.uploadGdrive) {
+    await uploadFinalAudioFile(outputPath);
   }
 }
 

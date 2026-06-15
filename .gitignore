@@ -4,8 +4,12 @@ node_modules
 *.swp
 *.swo
 
+# Google API
+google-oauth-client.json
+google-oauth-token.json
+google-service-account.json
+
 # TTS
 tts/audio/*
 tts/audio/tmp/*
 tts/text/*
-

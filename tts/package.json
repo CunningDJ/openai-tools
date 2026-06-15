@@ -6,7 +6,8 @@
   "scripts": {
     "test": "npm run typecheck",
     "typecheck": "tsc --noEmit",
-    "tts": "tsx src/tts.ts"
+    "tts": "tsx src/tts.ts",
+    "gdrive-upload-audio": "tsx src/gdrive-upload-audio.ts"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -23,7 +24,6 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.3",
-    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
 }

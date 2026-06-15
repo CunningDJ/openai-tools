@@ -14,6 +14,21 @@ npm install
 
 For environment variables, see the top-level [Env Setup](../README.md#env-setup).
 
+For Google Drive audio uploads, create a package-level `.env` from this folder:
+
+```bash
+cp .env.example .env
+```
+
+Then set the Drive folder ID. This is only required when using `--upload-gdrive`.
+Open the folder in Google Drive and copy the URL segment after `/folders/`:
+
+```bash
+TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID=your_drive_folder_id
+```
+
+Before the first Google Drive upload, run the top-level OAuth setup. See [Google Drive Uploads](../README.md#google-drive-uploads).
+
 ## Use
 
 Put source files in `text/`, then run:
@@ -48,7 +63,14 @@ Long files are split into temporary chunks in `audio/tmp/`, then combined into o
 npm run tts -- my-file.md --voice alloy
 npm run tts -- my-file.md --format wav
 npm run tts -- my-file.md --output audio/narration.mp3
+npm run tts -- my-file.md --upload-gdrive
 npm run tts -- my-file.md --style "Calm, warm professor explaining clearly"
+```
+
+To retry uploading an existing final audio file in `audio/` without generating a new file:
+
+```bash
+npm run gdrive-upload-audio -- sharper_chatgpt_advice.20260614_203906.mp3
 ```
 
 Run full help with:
