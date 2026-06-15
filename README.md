@@ -40,6 +40,12 @@ For Google Drive uploads, use OAuth credentials. A plain Google API key cannot u
 
 The first Google Drive upload opens a browser consent flow and saves `google-oauth-token.json` in the repo root. That token file is also gitignored. Future uploads reuse it.
 
+For a headless machine, create `google-oauth-token.json` once on a machine with a browser, then copy both `google-oauth-client.json` and `google-oauth-token.json` to the headless machine. If a browser should not be opened automatically, set:
+
+```bash
+GOOGLE_DRIVE_OAUTH_NO_BROWSER=1
+```
+
 ## Use
 
 Run the TTS tool from the repo root:

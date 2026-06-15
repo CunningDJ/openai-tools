@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { createReadStream } from "node:fs";
 import fs from "node:fs/promises";
 import http from "node:http";
+import type { Socket } from "node:net";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -189,6 +190,13 @@ async function authorizeWithBrowser(
   return new Promise((resolve, reject) => {
     let serverOrigin = "";
     let redirectUri = "";
+    const sockets = new Set<Socket>();
+    const closeServer = () => {
+      for (const socket of sockets) {
+        socket.destroy();
+      }
+      server.close();
+    };
     const server = http.createServer((request, response) => {
       const requestUrl = new URL(
         request.url ?? "/",
@@ -205,7 +213,7 @@ async function authorizeWithBrowser(
 
       if (error || !code) {
         response.writeHead(400).end("Google authorization failed.");
-        server.close();
+        closeServer();
         reject(new Error(error ?? "Missing Google OAuth authorization code"));
         return;
       }
@@ -213,7 +221,7 @@ async function authorizeWithBrowser(
       response
         .writeHead(200, { "content-type": "text/plain" })
         .end("Google Drive authorization complete. You can close this tab.");
-      server.close();
+      closeServer();
       resolve({
         code,
         redirectUri,
@@ -221,6 +229,10 @@ async function authorizeWithBrowser(
       });
     });
 
+    server.on("connection", (socket) => {
+      sockets.add(socket);
+      socket.on("close", () => sockets.delete(socket));
+    });
     server.on("error", reject);
     server.listen(0, "127.0.0.1", () => {
       serverOrigin = getServerOrigin(server);
@@ -236,6 +248,11 @@ async function authorizeWithBrowser(
 
       console.log("Authorize Google Drive access in your browser:");
       console.log(authUrl);
+      if (process.env.GOOGLE_DRIVE_OAUTH_NO_BROWSER === "1") {
+        console.log("Open this URL on a machine with a browser.");
+        return;
+      }
+
       openBrowser(authUrl);
     });
   });
