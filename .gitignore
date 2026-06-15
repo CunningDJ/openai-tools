@@ -7,7 +7,6 @@ node_modules
 # Google API
 google-oauth-client.json
 google-oauth-token.json
-google-service-account.json
 
 # TTS
 tts/audio/*
