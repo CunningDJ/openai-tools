@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["env.ts", "utils/**/*.ts"]
+  "include": ["env.ts", "utils/**/*.ts", "vitest.config.ts"]
 }
