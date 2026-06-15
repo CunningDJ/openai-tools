@@ -9,6 +9,7 @@ import {
   toolRootDir,
   type AudioFormat,
 } from "./constants";
+import { splitTextForTts } from "./text-chunking";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -22,7 +23,6 @@ const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
 loadEnvFromDir(toolRootDir);
 
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
-const maxInputChars = 7_500;
 const defaultVoice = "alloy";
 const defaultModel = "gpt-4o-mini-tts";
 const defaultStyle =
@@ -182,68 +182,6 @@ function getTtsInstructions(inputExtension: string): string {
   return isMarkdown(inputExtension)
     ? `${options.style} ${markdownInstructions}`
     : options.style;
-}
-
-function splitTextForTts(input: string): string[] {
-  const textBlocks = input
-    .split(/\n{2,}/)
-    .map((textBlock) => textBlock.trim())
-    .filter(Boolean);
-
-  return chunkTextSegments(textBlocks.flatMap(splitOversizedTextBlock), "\n\n");
-}
-
-function splitOversizedTextBlock(textBlock: string): string[] {
-  if (textBlock.length <= maxInputChars) return [textBlock];
-
-  const sentences =
-    textBlock.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g) ?? [textBlock];
-  const sentenceSegments = sentences
-    .map((sentence) => sentence.trim())
-    .filter(Boolean);
-
-  return chunkTextSegments(sentenceSegments, " ");
-}
-
-function chunkTextSegments(textSegments: string[], separator: string): string[] {
-  const chunks: string[] = [];
-  let currentChunk = "";
-
-  for (const textSegment of textSegments.flatMap(splitOversizedTextSegment)) {
-    const nextChunk = currentChunk
-      ? `${currentChunk}${separator}${textSegment}`
-      : textSegment;
-
-    if (nextChunk.length <= maxInputChars) {
-      currentChunk = nextChunk;
-      continue;
-    }
-
-    if (currentChunk) chunks.push(currentChunk);
-    currentChunk = textSegment;
-  }
-
-  if (currentChunk) chunks.push(currentChunk);
-  return chunks;
-}
-
-function splitOversizedTextSegment(textSegment: string): string[] {
-  if (textSegment.length <= maxInputChars) return [textSegment];
-
-  const words = textSegment.split(/\s+/);
-  return words.length === 1
-    ? splitByLength(textSegment)
-    : chunkTextSegments(words, " ");
-}
-
-function splitByLength(text: string): string[] {
-  const chunks: string[] = [];
-
-  for (let index = 0; index < text.length; index += maxInputChars) {
-    chunks.push(text.slice(index, index + maxInputChars));
-  }
-
-  return chunks;
 }
 
 // Error formatting
