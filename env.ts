@@ -4,4 +4,8 @@ import dotenv from "dotenv";
 
 const envDir = path.dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({ path: path.join(envDir, ".env"), quiet: true });
+export function loadEnvFromDir(dir: string): void {
+  dotenv.config({ path: path.join(dir, ".env"), quiet: true });
+}
+
+loadEnvFromDir(envDir);
