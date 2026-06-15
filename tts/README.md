@@ -8,8 +8,6 @@ From the repo root:
 
 ```bash
 npm install
-cd tts
-npm install
 ```
 
 For environment variables, see the top-level [Env Setup](../README.md#env-setup).

@@ -8,11 +8,9 @@ A personal workspace for small OpenAI-powered command line tools.
 
 ## Setup
 
-Install the shared dependencies, then the dependencies for the tool you want to use:
+Install dependencies from the repo root. npm workspaces install the root utilities and tool packages together:
 
 ```bash
-npm install
-cd tts
 npm install
 ```
 
