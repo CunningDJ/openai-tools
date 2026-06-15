@@ -46,7 +46,9 @@ npm run setup-gdrive
 
 That creates `google-oauth-token.json` in the repo root. Both Google OAuth JSON files are gitignored.
 
-For a headless machine, run `npm run setup-gdrive` once on a machine with a browser, then copy both files to the headless repo root:
+### Headless GDrive
+
+For a **headless machine**, run `npm run setup-gdrive` once on a machine with a browser, then copy **both** of these files to the headless repo root:
 
 ```text
 google-oauth-client.json
