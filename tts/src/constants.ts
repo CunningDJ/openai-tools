@@ -16,3 +16,18 @@ export type AudioFormat = (typeof audioFormats)[number];
 export const audioExtensions = new Set<string>(
   audioFormats.map((format) => `.${format}`),
 );
+
+export const ttsVoices = [
+  "alloy",
+  "ash",
+  "ballad",
+  "cedar",
+  "coral",
+  "fable",
+  "marin",
+  "nova",
+  "onyx",
+  "sage",
+  "verse",
+] as const;
+export type TtsVoice = (typeof ttsVoices)[number];

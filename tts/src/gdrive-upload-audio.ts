@@ -7,6 +7,7 @@ import {
   toolRootDir,
 } from "./constants";
 import path from "node:path";
+import ora from "ora";
 
 loadEnvFromDir(toolRootDir);
 
@@ -40,20 +41,25 @@ async function main(): Promise<void> {
     );
   }
 
-  console.log(`Uploading audio file: ${audioPath}`);
+  const spinner = ora(`Uploading ${audioPath} to Google Drive ...`).start();
 
   const uploadResult = await uploadFileToGoogleDrive(audioPath, {
     folderId,
   });
 
-  console.log(JSON.stringify({ googleDriveUpload: uploadResult }, null, 2));
-
-  if (!uploadResult.success) {
-    throw new Error(uploadResult.error.message);
+  if (uploadResult.success) {
+    spinner.succeed(
+      `Uploaded to Google Drive: ${uploadResult.file.name ?? audioPath}`,
+    );
+    return;
   }
+
+  spinner.stop();
+  throw new Error(`Google Drive upload failed: ${uploadResult.error.message}`);
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`Error: ${message}`);
   process.exit(1);
 });

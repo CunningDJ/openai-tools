@@ -78,4 +78,5 @@ npm run tts -- --help
 - Default model: `gpt-4o-mini-tts`
 - Supported input: `.txt`, `.md`, `.markdown`
 - Supported audio: `mp3`, `wav`, `flac`, `aac`, `opus`
+- Supported voices: `alloy`, `ash`, `ballad`, `cedar`, `coral`, `fable`, `marin`, `nova`, `onyx`, `sage`, `verse`
 - If you hit a quota error, check OpenAI billing and usage limits.

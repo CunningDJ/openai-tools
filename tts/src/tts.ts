@@ -8,6 +8,8 @@ import {
   tempOutputDir,
   toolRootDir,
   type AudioFormat,
+  ttsVoices,
+  type TtsVoice,
 } from "./constants";
 import { splitTextForTts } from "./text-chunking";
 import { spawn } from "node:child_process";
@@ -23,7 +25,7 @@ const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
 loadEnvFromDir(toolRootDir);
 
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
-const defaultVoice = "alloy";
+const defaultVoice: TtsVoice = "alloy";
 const defaultModel = "gpt-4o-mini-tts";
 const defaultStyle =
   "Voice: Calm, intelligent, and warmly engaging, like a thoughtful professor explaining a useful idea. Delivery: Conversational and measured, with natural variation and light emphasis on important takeaways. Pacing: Steady and relaxed, pausing briefly between sections and after dense ideas. Phrasing: Make lists and headings sound natural when spoken. Tone: Clear, curious, grounded, and quietly confident. Avoid theatrical narration or salesy enthusiasm.";
@@ -37,7 +39,7 @@ type CliOptions = {
   out?: string;
   output?: string;
   uploadGdrive?: boolean;
-  voice: string;
+  voice: TtsVoice;
   model: string;
   format: AudioFormat;
   style: string;
@@ -59,7 +61,11 @@ program
   .addOption(new Option("--o <path>", "Alias for --output").hideHelp())
   .addOption(new Option("--out <path>", "Alias for --output").hideHelp())
   .option("--upload-gdrive", "Upload the final audio file to Google Drive")
-  .option("-v, --voice <voice>", "Voice to use", defaultVoice)
+  .addOption(
+    new Option("-v, --voice <voice>", "Voice to use")
+      .choices([...ttsVoices])
+      .default(defaultVoice),
+  )
   .option("-m, --model <model>", "TTS model to use", defaultModel)
   .option(
     "-f, --format <format>",
@@ -352,13 +358,11 @@ async function uploadFinalAudioFile(outputPath: string): Promise<void> {
     spinner.succeed(
       `Uploaded to Google Drive: ${uploadResult.file.name ?? outputPath}`,
     );
-    console.log(JSON.stringify({ googleDriveUpload: uploadResult }, null, 2));
     return;
   }
 
-  spinner.fail("Failed to upload to Google Drive");
-  console.log(JSON.stringify({ googleDriveUpload: uploadResult }, null, 2));
-  throw new Error(uploadResult.error.message);
+  spinner.stop();
+  throw new Error(`Google Drive upload failed: ${uploadResult.error.message}`);
 }
 
 // Main workflow
@@ -428,6 +432,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  console.error(formatCliError(error));
+  console.error(`Error: ${formatCliError(error)}`);
   process.exit(1);
 });
