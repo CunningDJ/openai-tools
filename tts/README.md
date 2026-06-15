@@ -27,7 +27,7 @@ Open the folder in Google Drive and copy the URL segment after `/folders/`:
 TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID=your_drive_folder_id
 ```
 
-For service-account uploads, this should be a folder in a Shared Drive. The folder or Shared Drive must also grant file-add access to the `client_email` in the service account JSON. See the top-level [Env Setup](../README.md#env-setup).
+The first Google Drive upload opens a browser consent flow if the top-level OAuth token has not been created yet. See the top-level [Env Setup](../README.md#env-setup).
 
 ## Use
 

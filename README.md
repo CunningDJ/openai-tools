@@ -30,31 +30,15 @@ Then add your OpenAI API key:
 OPENAI_API_KEY=your_api_key_here
 ```
 
-For Google Drive uploads, use write-capable credentials in the top-level `.env`.
-A plain Google API key cannot upload files to Drive.
+For Google Drive uploads, use OAuth credentials. A plain Google API key cannot upload files to Drive.
 
-The easiest setup for unattended uploads is a service account JSON file, but it must upload into a Shared Drive. Service accounts don't have personal Drive storage quota, so uploads to a normal My Drive folder can fail with a storage quota error.
+1. Enable the Google Drive API: https://console.cloud.google.com/apis/library/drive.googleapis.com
+2. Configure the OAuth consent screen and add yourself as a test user: https://console.cloud.google.com/apis/credentials/consent
+3. Create an OAuth client ID: https://console.cloud.google.com/apis/credentials
+4. Choose **Desktop app** as the application type.
+5. Download the client JSON, rename it to `google-oauth-client.json`, and put it in the repo root. This file is gitignored.
 
-1. In Google Cloud, create a service account: https://console.cloud.google.com/iam-admin/serviceaccounts
-2. Create and download a JSON key for that service account.
-3. Rename the downloaded file to `google-service-account.json` and put it in the repo root. This file is gitignored.
-4. Create or choose a folder in a Shared Drive.
-5. Open the JSON file, copy its `client_email`, and add that email to the Shared Drive or target folder with permission to add files. If you skip this, uploads usually fail with `File not found` for the folder ID.
-
-If you want to keep the JSON file somewhere else, set its absolute path in `.env`:
-
-```bash
-GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/google-service-account.json
-```
-
-If a JSON file is awkward for your environment, set the service account values directly in `.env`:
-
-```bash
-GOOGLE_DRIVE_CLIENT_EMAIL=service-account@project.iam.gserviceaccount.com
-GOOGLE_DRIVE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-```
-
-If you need to upload into your personal My Drive instead of a Shared Drive, use an OAuth user flow rather than a service account.
+The first Google Drive upload opens a browser consent flow and saves `google-oauth-token.json` in the repo root. That token file is also gitignored. Future uploads reuse it.
 
 ## Use
 
