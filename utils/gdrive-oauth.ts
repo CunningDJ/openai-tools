@@ -55,10 +55,6 @@ type OAuthClientJson = {
     client_id?: string;
     client_secret?: string;
   };
-  web?: {
-    client_id?: string;
-    client_secret?: string;
-  };
 };
 
 async function readOAuthClientConfig(): Promise<OAuthClientConfig> {
@@ -68,12 +64,12 @@ async function readOAuthClientConfig(): Promise<OAuthClientConfig> {
     );
   });
   const parsed = JSON.parse(rawClient) as OAuthClientJson;
-  const credentials = parsed.installed ?? parsed.web;
+  const credentials = parsed.installed;
   const clientId = credentials?.client_id;
 
   if (!clientId) {
     throw new Error(
-      `Invalid Google OAuth client file: ${oauthClientFile}. Expected a Desktop OAuth client JSON file.`,
+      `Invalid Google OAuth client file: ${oauthClientFile}. Expected a Desktop OAuth client JSON file with a top-level "installed" config.`,
     );
   }
 

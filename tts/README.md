@@ -14,6 +14,12 @@ For environment variables, see the top-level [Env Setup](../README.md#env-setup)
 
 Run the commands below from this `tts/` directory unless noted.
 
+## Code Layout
+
+- CLI entrypoints live in `cli/`.
+- TTS-local helpers live in `utils/`.
+- Shared TTS constants live at the package root.
+
 For Google Drive audio uploads, create a package-level `.env`:
 
 ```bash

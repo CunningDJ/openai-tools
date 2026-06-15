@@ -1,5 +1,4 @@
 import { loadEnvFromDir } from "../../env";
-import { uploadFileToGoogleDrive } from "../../utils/gdrive";
 import {
   audioFormats,
   inputDir,
@@ -10,8 +9,12 @@ import {
   type AudioFormat,
   ttsVoices,
   type TtsVoice,
-} from "./constants";
-import { splitTextForTts } from "./text-chunking";
+} from "../constants";
+import {
+  getGoogleDriveAudioFolderId,
+  uploadAudioFileToGoogleDrive,
+} from "../utils/audio-upload";
+import { splitTextForTts } from "../utils/text-chunking";
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import { createRequire } from "node:module";
@@ -25,6 +28,7 @@ const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
 loadEnvFromDir(toolRootDir);
 
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
+const maxConcurrentSpeechRequests = 3;
 const defaultVoice: TtsVoice = "alloy";
 const defaultModel = "gpt-4o-mini-tts";
 const defaultStyle =
@@ -239,14 +243,15 @@ async function createSpeechFiles(
     textChunks.length === 1
       ? ora(`Generating audio for ${outputPath} ...`).start()
       : ora(
-          `Generating ${textChunks.length} audio chunks concurrently ...`,
+          `Generating ${textChunks.length} audio chunks with up to ${maxConcurrentSpeechRequests} concurrent requests ...`,
         ).start();
 
   try {
-    await Promise.all(
-      textChunks.map((textChunk, index) =>
+    await runWithConcurrency(
+      textChunks,
+      maxConcurrentSpeechRequests,
+      (textChunk, index) =>
         createSpeechFile(textChunk, audioChunkPaths[index], instructions),
-      ),
     );
     spinner.succeed(
       textChunks.length === 1
@@ -262,6 +267,31 @@ async function createSpeechFiles(
     );
     throw error;
   }
+}
+
+async function runWithConcurrency<T>(
+  items: T[],
+  concurrencyLimit: number,
+  task: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  let failed = false;
+  const workerCount = Math.min(concurrencyLimit, items.length);
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (!failed && nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      try {
+        await task(items[currentIndex], currentIndex);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  });
+
+  await Promise.all(workers);
 }
 
 // Audio combining
@@ -346,38 +376,14 @@ async function removeFiles(pathsToRemove: string[]): Promise<void> {
   );
 }
 
-// Google Drive upload
-async function uploadFinalAudioFile(outputPath: string): Promise<void> {
-  const folderId = process.env.TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID?.trim();
-  const spinner = ora(`Uploading ${outputPath} to Google Drive ...`).start();
-  const uploadResult = await uploadFileToGoogleDrive(outputPath, {
-    folderId,
-  });
-
-  if (uploadResult.success) {
-    spinner.succeed(
-      `Uploaded to Google Drive: ${uploadResult.file.name ?? outputPath}`,
-    );
-    return;
-  }
-
-  spinner.stop();
-  throw new Error(`Google Drive upload failed: ${uploadResult.error.message}`);
-}
-
 // Main workflow
 async function main() {
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Missing OPENAI_API_KEY in the repo root .env");
   }
 
-  if (
-    options.uploadGdrive &&
-    !process.env.TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID?.trim()
-  ) {
-    throw new Error(
-      "Missing TTS_GOOGLE_DRIVE_AUDIO_FOLDER_ID in tts/.env. Set it to the Google Drive folder ID for final audio uploads.",
-    );
+  if (options.uploadGdrive) {
+    getGoogleDriveAudioFolderId();
   }
 
   await fs.mkdir(inputDir, { recursive: true });
@@ -427,7 +433,7 @@ async function main() {
   }
 
   if (options.uploadGdrive) {
-    await uploadFinalAudioFile(outputPath);
+    await uploadAudioFileToGoogleDrive(outputPath);
   }
 }
 

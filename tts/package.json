@@ -6,8 +6,8 @@
   "scripts": {
     "test": "npm run typecheck",
     "typecheck": "tsc --noEmit",
-    "tts": "tsx src/tts.ts",
-    "gdrive-upload-audio": "tsx src/gdrive-upload-audio.ts"
+    "tts": "tsx cli/tts.ts",
+    "gdrive-upload-audio": "tsx cli/gdrive-upload-audio.ts"
   },
   "engines": {
     "node": ">=22.12.0"

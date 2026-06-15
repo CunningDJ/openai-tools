@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 
 export const toolRootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  "..",
 );
 export const repoRootDir = path.resolve(toolRootDir, "..");
 export const inputDir = path.join(toolRootDir, "text");

@@ -6,6 +6,12 @@ A personal workspace for small OpenAI-powered command line tools.
 
 - [`tts`](tts/): turns `.txt` and `.md` files into audio with OpenAI text-to-speech.
 
+## Repo Layout
+
+- Root Google Drive helpers live in `utils/`.
+- TTS runnable scripts live in `tts/cli/`.
+- TTS-local helpers live in `tts/utils/`.
+
 ## Setup
 
 Install everything from the repo root. npm workspaces install the root utilities and tool packages together:
