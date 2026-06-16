@@ -1,4 +1,5 @@
 import { loadEnvFromDir } from "../../env";
+import { checkIsDirectlyCalledFile } from "../../utils/cli";
 import {
   audioFormats,
   inputDir,
@@ -25,7 +26,6 @@ import OpenAI, { APIError } from "openai";
 import ora from "ora";
 
 const invocationDir = path.resolve(process.env.INIT_CWD ?? process.cwd());
-loadEnvFromDir(toolRootDir);
 
 const supportedInputExtensions = [".txt", ".md", ".markdown"] as const;
 const maxConcurrentSpeechRequests = 3;
@@ -50,36 +50,35 @@ type CliOptions = {
 };
 
 // CLI
-const program = new Command();
-
-program
-  .name("tts")
-  .description("Generate audio from a text or Markdown file.")
-  .usage("<file> [options]")
-  .showHelpAfterError("Usage: tts <file> [options]")
-  .argument("<file>", "Input file path, or filename inside text/")
-  .option(
-    "-o, --output <path>",
-    "Final output path. A timestamp is inserted before the extension.",
-  )
-  .addOption(new Option("--o <path>", "Alias for --output").hideHelp())
-  .addOption(new Option("--out <path>", "Alias for --output").hideHelp())
-  .option("--upload-gdrive", "Upload the final audio file to Google Drive")
-  .addOption(
-    new Option("-v, --voice <voice>", "Voice to use")
-      .choices([...ttsVoices])
-      .default(defaultVoice),
-  )
-  .option("-m, --model <model>", "TTS model to use", defaultModel)
-  .option(
-    "-f, --format <format>",
-    "Audio format: mp3, wav, flac, aac, opus",
-    "mp3",
-  )
-  .option("-s, --style <style>", "Speaking style/instructions", defaultStyle)
-  .addHelpText(
-    "after",
-    `
+function createProgram(): Command {
+  return new Command()
+    .name("tts")
+    .description("Generate audio from a text or Markdown file.")
+    .usage("<file> [options]")
+    .showHelpAfterError("Usage: tts <file> [options]")
+    .argument("<file>", "Input file path, or filename inside text/")
+    .option(
+      "-o, --output <path>",
+      "Final output path. A timestamp is inserted before the extension.",
+    )
+    .addOption(new Option("--o <path>", "Alias for --output").hideHelp())
+    .addOption(new Option("--out <path>", "Alias for --output").hideHelp())
+    .option("--upload-gdrive", "Upload the final audio file to Google Drive")
+    .addOption(
+      new Option("-v, --voice <voice>", "Voice to use")
+        .choices([...ttsVoices])
+        .default(defaultVoice),
+    )
+    .option("-m, --model <model>", "TTS model to use", defaultModel)
+    .option(
+      "-f, --format <format>",
+      "Audio format: mp3, wav, flac, aac, opus",
+      "mp3",
+    )
+    .option("-s, --style <style>", "Speaking style/instructions", defaultStyle)
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ npm run tts -- abc.md
   $ npm run tts -- text/abc.txt
@@ -89,15 +88,8 @@ Examples:
   $ npm run tts -- abc.md --upload-gdrive
   $ npm run tts -- abc.md --style "Warm, thoughtful podcast narrator"
 `,
-  )
-  .parse();
-
-const [inputFileArg] = program.args;
-const options = program.opts<CliOptions>();
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+    );
+}
 
 // Path helpers
 function resolveInputPath(file: string): string {
@@ -110,7 +102,7 @@ function resolveOutputPath(file: string): string {
   return resolveUserPath(file);
 }
 
-function getRequestedOutputPath(): string | undefined {
+function getRequestedOutputPath(options: CliOptions): string | undefined {
   return options.output ?? options.o ?? options.out;
 }
 
@@ -188,10 +180,10 @@ async function assertReadableFile(filePath: string): Promise<void> {
 }
 
 // Text preparation
-function getTtsInstructions(inputExtension: string): string {
+function getTtsInstructions(inputExtension: string, style: string): string {
   return isMarkdown(inputExtension)
-    ? `${options.style} ${markdownInstructions}`
-    : options.style;
+    ? `${style} ${markdownInstructions}`
+    : style;
 }
 
 // Error formatting
@@ -216,6 +208,8 @@ async function createSpeechFile(
   text: string,
   outputPath: string,
   instructions: string,
+  options: CliOptions,
+  client: OpenAI,
 ): Promise<void> {
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
@@ -235,6 +229,8 @@ async function createSpeechFiles(
   textChunks: string[],
   outputPath: string,
   instructions: string,
+  options: CliOptions,
+  client: OpenAI,
 ): Promise<string[]> {
   const audioChunkPaths = textChunks.map((_, index) =>
     getAudioChunkPath(outputPath, index + 1, textChunks.length),
@@ -251,7 +247,13 @@ async function createSpeechFiles(
       textChunks,
       maxConcurrentSpeechRequests,
       (textChunk, index) =>
-        createSpeechFile(textChunk, audioChunkPaths[index], instructions),
+        createSpeechFile(
+          textChunk,
+          audioChunkPaths[index],
+          instructions,
+          options,
+          client,
+        ),
     );
     spinner.succeed(
       textChunks.length === 1
@@ -377,7 +379,17 @@ async function removeFiles(pathsToRemove: string[]): Promise<void> {
 }
 
 // Main workflow
-async function main() {
+export async function main(): Promise<void> {
+  loadEnvFromDir(toolRootDir);
+
+  const program = createProgram();
+  program.parse();
+  const [inputFileArg] = program.args;
+  const options = program.opts<CliOptions>();
+  const client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
   if (!process.env.OPENAI_API_KEY) {
     throw new Error("Missing OPENAI_API_KEY in the repo root .env");
   }
@@ -405,8 +417,8 @@ async function main() {
 
   const rawText = await fs.readFile(inputPath, "utf8");
   const textChunks = splitTextForTts(rawText);
-  const instructions = getTtsInstructions(inputExtension);
-  const requestedOutputOption = getRequestedOutputPath();
+  const instructions = getTtsInstructions(inputExtension, options.style);
+  const requestedOutputOption = getRequestedOutputPath(options);
   const requestedOutputPath =
     requestedOutputOption !== undefined
       ? resolveOutputPath(requestedOutputOption)
@@ -425,6 +437,8 @@ async function main() {
     textChunks,
     outputPath,
     instructions,
+    options,
+    client,
   );
 
   if (audioChunkPaths.length > 1) {
@@ -437,7 +451,9 @@ async function main() {
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(`Error: ${formatCliError(error)}`);
-  process.exit(1);
-});
+if (checkIsDirectlyCalledFile(import.meta.url)) {
+  main().catch((error: unknown) => {
+    console.error(`Error: ${formatCliError(error)}`);
+    process.exit(1);
+  });
+}

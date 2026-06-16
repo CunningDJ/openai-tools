@@ -14,6 +14,10 @@ For environment variables, see the top-level [Env Setup](../README.md#env-setup)
 
 Run the commands below from this `tts/` directory unless noted.
 
+## Verify Code
+
+See the top-level [Verify Code](../README.md#verify-code) instructions.
+
 ## Code Layout
 
 - CLI entrypoints live in `cli/`.

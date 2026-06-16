@@ -1,5 +1,6 @@
 import { loadEnvFromDir } from "../../env";
 import { uploadAudioFileToGoogleDrive } from "../utils/audio-upload";
+import { checkIsDirectlyCalledFile } from "../../utils/cli";
 import {
   audioDir,
   audioExtensions,
@@ -8,9 +9,9 @@ import {
 } from "../constants";
 import path from "node:path";
 
-loadEnvFromDir(toolRootDir);
+export async function main(): Promise<void> {
+  loadEnvFromDir(toolRootDir);
 
-async function main(): Promise<void> {
   const [audioFileArg] = process.argv.slice(2);
 
   if (!audioFileArg) {
@@ -36,8 +37,10 @@ async function main(): Promise<void> {
   await uploadAudioFileToGoogleDrive(audioPath);
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`Error: ${message}`);
-  process.exit(1);
-});
+if (checkIsDirectlyCalledFile(import.meta.url)) {
+  main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Error: ${message}`);
+    process.exit(1);
+  });
+}

@@ -9,6 +9,7 @@
   "scripts": {
     "setup-gdrive": "tsx utils/cli/setup-gdrive.ts",
     "test": "vitest run",
+    "verify": "npm run typecheck && npm run test",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace tts-openai",
     "tts": "cd tts/ && npm run tts --"
   },

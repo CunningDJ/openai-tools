@@ -12,6 +12,29 @@ A personal workspace for small OpenAI-powered command line tools.
 - TTS runnable scripts live in `tts/cli/`.
 - TTS-local helpers live in `tts/utils/`.
 
+## Adding CLI Scripts
+
+New CLI entry files should keep their runnable workflow inside a `main()` function
+and only call it when the file is run directly. Use the shared guard from
+`utils/cli.ts`:
+
+```ts
+import { checkIsDirectlyCalledFile } from "../utils/cli";
+
+async function main(): Promise<void> {
+  // CLI workflow here.
+}
+
+if (checkIsDirectlyCalledFile(import.meta.url)) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}
+```
+
+This keeps CLI modules import-safe for tests or future reuse.
+
 ## Setup
 
 Install everything from the repo root. npm workspaces install the root utilities and tool packages together:
@@ -19,6 +42,16 @@ Install everything from the repo root. npm workspaces install the root utilities
 ```bash
 npm install
 ```
+
+## Verify Code
+
+Run the full repo check from the root:
+
+```bash
+npm run verify
+```
+
+This runs TypeScript typechecking and the unit test suite.
 
 ## Env Setup
 
